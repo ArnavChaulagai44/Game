@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Golden Ranger Online</title>
+<style>
+body{margin:0;background:#07101d;color:white;font-family:Arial;overflow:hidden}canvas{display:block}
+#ui{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none}
+.box,#lobby{background:#000b;border:1px solid #ffd447;border-radius:12px;padding:10px}
+#lobby{position:fixed;inset:0;margin:auto;width:min(360px,80vw);height:max-content;text-align:center}
+input,button{padding:12px;border-radius:9px;border:0;margin:5px}button{background:#ffd447;font-weight:bold}
+#help{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#0009;padding:8px;border-radius:9px;font-size:12px}
+</style></head><body>
+<canvas id=c></canvas><div id=ui><div class=box>ROOM: <span id=room>-</span></div><div class=box>❤️ <span id=hp>100</span> ⭐ <span id=score>0</span></div></div>
+<div id=lobby><h1 style="color:#ffd447">GOLDEN RANGER</h1><p>Play with friends online</p>
+<input id=name placeholder="Your name" maxlength=14><br><button onclick="createRoom()">CREATE ROOM</button><br>
+<input id=code placeholder="Room code" maxlength=6><button onclick="joinRoom()">JOIN</button><p id=status>Enter a name to start.</p></div>
+<div id=help>WASD / arrows: move • Mouse: aim • Click/Space: shoot</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();onresize=rs;
+let ws,me=null,others={},bullets=[],enemies=[],keys={},mouse={x:0,y:0,down:false};
+onkeydown=e=>{keys[e.key.toLowerCase()]=1;if(e.code==='Space')mouse.down=1};onkeyup=e=>{keys[e.key.toLowerCase()]=0;if(e.code==='Space')mouse.down=0};
+c.onmousemove=e=>{mouse.x=e.clientX;mouse.y=e.clientY};c.onmousedown=()=>mouse.down=1;onmouseup=()=>mouse.down=0;
+function connect(room){const proto=location.protocol==='https:'?'wss':'ws';ws=new WebSocket(`${proto}://${location.host}/ws?room=${room}&name=${encodeURIComponent(document.getElementById('name').value||'Ranger')}`);
+ws.onopen=()=>{document.getElementById('room').textContent=room;document.getElementById('status').textContent='Connected! Share this room code: '+room;document.getElementById('lobby').style.display='none'};
+ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='state'){me=m.you;others=m.players;enemies=m.enemies;document.getElementById('hp').textContent=me.hp;document.getElementById('score').textContent=me.score}};
+ws.onclose=()=>{document.getElementById('status').textContent='Disconnected from server.';document.getElementById('lobby').style.display='block'}
+}
+function createRoom(){const code=Math.random().toString(36).slice(2,8).toUpperCase();connect(code)}
+function joinRoom(){const code=document.getElementById('code').value.trim().toUpperCase();if(code)connect(code)}
+function send(){if(!ws||ws.readyState!==1||!me)return;let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);
+ws.send(JSON.stringify({type:'input',dx,dy,shoot:mouse.down,aim:Math.atan2(mouse.y-me.y,mouse.x-me.x)}))}
+setInterval(send,40);
+function draw(){x.fillStyle='#07101d';x.fillRect(0,0,W,H);x.fillStyle='#fff3';for(let i=0;i<80;i++)x.fillRect(i*83%W,i*47%H,2,2);
+for(const id in others){const p=others[id];x.fillStyle='#4fd1ff';x.beginPath();x.arc(p.x,p.y,17,0,7);x.fill();x.fillStyle='#fff';x.font='12px Arial';x.textAlign='center';x.fillText(p.name,p.x,p.y-24)}
+if(me){x.fillStyle='#ffd447';x.beginPath();x.arc(me.x,me.y,18,0,7);x.fill();x.fillStyle='#fff1a0';x.beginPath();x.arc(me.x,me.y-5,9,0,7);x.fill()}
+for(const e of enemies){x.fillStyle='#9b43d7';x.beginPath();x.arc(e.x,e.y,e.r,0,7);x.fill()}
+requestAnimationFrame(draw)}draw();
+</script></body></html>
